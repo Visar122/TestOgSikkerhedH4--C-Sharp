@@ -19,8 +19,11 @@ namespace TestOgSikkerhedH4.Controllers
         [HttpPost("SignUp")]
         public async Task<IActionResult> SignUp([FromBody] Login request)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-                return BadRequest(new { Message = "Email and password are required" });
+            if (request == null || string.IsNullOrWhiteSpace(request.Email) ||
+                string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.CPR))
+            {
+                return BadRequest(new { Message = "Email, password, and CPR are required" });
+            }
 
             // ✅ Check if user already exists
             var existingUser = await _context.login.FirstOrDefaultAsync(u => u.Email == request.Email);
@@ -29,8 +32,9 @@ namespace TestOgSikkerhedH4.Controllers
                 return Conflict(new { Message = "User with this email already exists" });
             }
 
-            // ✅ Hash password before saving
-            request.Password = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            // ✅ Hash Password & CPR before saving
+            request.Password = HashHelper.HashBCrypt(request.Password);
+            request.CPR = HashHelper.HashCPR(request.CPR);
 
             // ✅ Save user to database
             await _context.login.AddAsync(request);
@@ -43,6 +47,7 @@ namespace TestOgSikkerhedH4.Controllers
                 Email = request.Email
             });
         }
+
 
         [HttpGet("Login")]
         public async Task<IActionResult> Login([FromQuery] string email, [FromQuery] string password)
@@ -59,7 +64,7 @@ namespace TestOgSikkerhedH4.Controllers
                 return NotFound(new { Message = "User not found" });
             }
 
-            // ✅ Verify password
+            // ✅ Verify Password
             if (!BCrypt.Net.BCrypt.Verify(password, user.Password))
             {
                 return Unauthorized(new { Message = "Incorrect password" });
@@ -68,10 +73,13 @@ namespace TestOgSikkerhedH4.Controllers
             return Ok(new
             {
                 UserID = user.UserID,
-                Name = user.Name,  // ✅ Added Name
+                Name = user.Name,
                 Email = user.Email,
-                Status = user.Status // ✅ Added Status
+                Status = user.Status,
+                CPR = user.CPR //
             });
         }
+
     }
 }
+
